@@ -1,0 +1,33 @@
+def packageName = "${env.JOB_NAME}"
+def buildNumber = "${env.BUILD_NUMBER}"
+def dirname = "${packageName}_${buildNumber}".split('/')[2]
+def fulldirname = "/tmp/${dirname}"
+def ENV_VAR = ""
+
+pipeline {
+  agent any
+  
+  stages {
+      stage('Poll-Merge-Release') {
+        steps {
+            checkout scm
+            sh """
+				#ls -al
+				#pwd
+				
+                echo "Working PKG: ${packageName}_${buildNumber}"
+				echo "Working Folder name: $dirname"
+				
+				mkdir -p ${fulldirname}
+				
+				chmod +x ./scripts/axway-projpack.sh
+				./scripts/axway-projpack.sh ${dirname} ${fulldirname} \$(pwd)
+				
+				rm -rf ${fulldirname}
+				
+            """            
+          }        
+      }
+  }
+  
+}

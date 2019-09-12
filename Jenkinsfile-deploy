@@ -1,0 +1,46 @@
+def packageName = "${env.JOB_NAME}"
+def buildNumber = "${env.BUILD_NUMBER}"
+def polname = "${packageName}".split('/')[2]
+def buildPkgName = "${AXWAY_ARTIFACT_URL}".split('/')[7]
+
+pipeline {
+  agent any
+  
+  stages {    
+      stage('Pull Artifact') {
+        steps {
+			sh "curl ${AXWAY_ARTIFACT_URL} > ${polname}-${buildNumber}-from-${buildPkgName}"
+          }        
+      }
+	  stage ('Deploy Artifact') {
+        steps {
+          sh """
+			echo "Deployment PKG: ${buildPkgName} from deployment set"
+            echo "Working PKG: ${polname}-${buildNumber}-from-${buildPkgName}"
+			
+			mkdir -p /tmp/${polname}-${buildNumber}
+			tar -zxvf ./${polname}-${buildNumber}-from-${buildPkgName} -C  /tmp/${polname}-${buildNumber}/
+			ls -al /tmp/${polname}-${buildNumber}
+			ls -al /tmp/${polname}-${buildNumber}/env
+			
+			chmod +x ./scripts/axway-projdeploy.sh
+			./scripts/axway-projdeploy.sh ${buildPkgName} /tmp/${polname}-${buildNumber} admin TeamAPI2018! ${env.ENVIRONMENT}
+            """    
+        }
+      }
+	  stage ('Validate Deployment') {
+		steps {
+			sh """
+               cd /tmp/${polname}-${buildNumber} 
+			   newman run /tmp/${polname}-${buildNumber}/DPC-DEV-API-Factory.postman_collection.json -e /tmp/${polname}-${buildNumber}/DPC-CICD.postman_environment.json --insecure
+			   
+			   cd /tmp
+			   rm -rf /tmp/${polname}-${buildNumber}
+               """
+			  
+			
+        }
+	  }
+	 
+	}
+}
